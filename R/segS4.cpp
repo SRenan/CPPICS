@@ -6,6 +6,7 @@
 *   include PING variations
 *   Maybe return a list of chr$regionIdx$yF/yR/cF..
 *   Remove the R part in seg_char. Maybe return just the region vector.
+*   pass chr as argument. Maybe as part of the region class
 */
 #include <Rcpp.h>
 #include <iostream>
@@ -28,12 +29,30 @@ struct region{ //The regions
   vector<int> regContR;
 };
 
-SEXP seg_chr(vector<int>& yF, vector<int>& yR, vector<int>& contF, vector<int>& contR, int minReadsRegion, int minLregion, int minReads, int step, int width, int maxStep, int minDist, int verbose);
+//SEXP seg_chr(vector<int>& yF, vector<int>& yR, vector<int>& contF, vector<int>& contR, int minReadsRegion, int minLregion, int minReads, int step, int width, int maxStep, int minDist, int verbose);
+vector<Rcpp::S4> seg_chr(vector<int>& yF, vector<int>& yR, vector<int>& contF, vector<int>& contR, int minReadsRegion, int minLregion, int minReads, int step, int width, int maxStep, int minDist, int verbose);
+
 void getWindowsScores(vector<window>& windows, vector<int>& yF, vector<int>& yR, int width, int minDist);
 int callRegions(vector<window>& windows, int width, int minReads, vector<region>& regions);
 int callLongRegions(vector<window>& windows, int width, int minReads, vector<region>& regions, int maxStep, int kStep, int minLregion);
 void segR(vector<int>& yF, vector<int>& yR, vector<int>& contF, vector<int>& contR, vector<window>& windows, vector<region>& regions);
+//SEXP returnS4(vector<region>& regions);
 
+
+vector<Rcpp::S4> returnS4(vector<region>& regions){
+  vector<Rcpp::S4> segReads_vector(regions.size());
+  Rcpp::Language ret_segR("new", "segReads");
+  for(int idxReg = 0; idxReg < regions.size(); ++idxReg){
+    Rcpp::S4 segReads(ret_segR.eval());
+    segReads.slot("yF") = regions.at(idxReg).regReadsF;
+    segReads.slot("yR") = regions.at(idxReg).regReadsR;
+    segReads.slot("cF") = regions.at(idxReg).regContF;
+    segReads.slot("cR") = regions.at(idxReg).regContR;
+    segReads_vector.at(idxReg) = segReads;
+  }
+//  Rcpp::List ret = Rcpp::List::create(segReads_vector);
+  return(segReads_vector);
+}
 
 //[[Rcpp::export]]
 SEXP CPP_seg(Rcpp::List data, Rcpp::List dataC, int minReadsRegion, int minLregion, int minReads, int step, int width, int maxStep, int minDist, int verbose){
@@ -70,14 +89,21 @@ SEXP CPP_seg(Rcpp::List data, Rcpp::List dataC, int minReadsRegion, int minLregi
     std::vector<int> yR = Rcpp::as<std::vector<int> >(dataList["R"]);
     std::vector<int> contF = Rcpp::as<std::vector<int> >(contList["F"]);
     std::vector<int> contR = Rcpp::as<std::vector<int> >(contList["R"]);
-    
+
     ret[i] = seg_chr(yF, yR, contF, contR, minReadsRegion, minLregion, minReads, step, width, maxStep, minDist, verbose);
   }
-  ret.names() = chrs;
-  return(Rcpp::wrap(ret));
+  for(int j=0; j<data.size(); j++){
+    
+  }
+  Rcpp::Language new_segReadsList("new", "segReadsList");
+  Rcpp::S4 returnVal(new_segReadsList.eval());
+  returnVal.slot("List") = ret;
+
+  return(returnVal);
 }
 
-SEXP seg_chr(vector<int>& yF, vector<int>& yR, vector<int>& contF, vector<int>& contR, int minReadsRegion, int minLregion, int minReads, int step, int width, int maxStep, int minDist, int verbose){
+//SEXP seg_chr(vector<int>& yF, vector<int>& yR, vector<int>& contF, vector<int>& contR, int minReadsRegion, int minLregion, int minReads, int step, int width, int maxStep, int minDist, int verbose){
+vector<Rcpp::S4> seg_chr(vector<int>& yF, vector<int>& yR, vector<int>& contF, vector<int>& contR, int minReadsRegion, int minLregion, int minReads, int step, int width, int maxStep, int minDist, int verbose){
 
   sort(yF.begin(), yF.end());
   sort(yR.begin(), yR.end());
@@ -123,10 +149,10 @@ SEXP seg_chr(vector<int>& yF, vector<int>& yR, vector<int>& contF, vector<int>& 
   else{
   }
 
-  vector<vector<int> > yFret(nRegions); //vector of vectors
-  vector<vector<int> > yRret(nRegions);
-  vector<vector<int> > cFret(nRegions);
-  vector<vector<int> > cRret(nRegions);
+//  vector<vector<int> > yFret(nRegions); //vector of vectors
+//  vector<vector<int> > yRret(nRegions);
+//  vector<vector<int> > cFret(nRegions);
+//  vector<vector<int> > cRret(nRegions);
 
   int idxRet = 0;
   int regLen = 0;
@@ -136,28 +162,30 @@ SEXP seg_chr(vector<int>& yF, vector<int>& yR, vector<int>& contF, vector<int>& 
            - min(regions.at(idxReg).regReadsF.at(0),regions.at(idxReg).regReadsR.at(0));
     if(regions.at(idxReg).regReadsF.size() < minReadsRegion || regions.at(idxReg).regReadsR.size() < minReadsRegion || regLen < minLregion){
     } else {
-      yFret.at(idxRet) = regions.at(idxReg).regReadsF;
-      yRret.at(idxRet) = regions.at(idxReg).regReadsR;
-      cFret.at(idxRet) = regions.at(idxReg).regContF;
-      cRret.at(idxRet) = regions.at(idxReg).regContR;
+//      yFret.at(idxRet) = regions.at(idxReg).regReadsF;
+//      yRret.at(idxRet) = regions.at(idxReg).regReadsR;
+//      cFret.at(idxRet) = regions.at(idxReg).regContF;
+//      cRret.at(idxRet) = regions.at(idxReg).regContR;
       idxRet++;
     }
   }
   if(verbose>1){
     cout<<nRegions-idxRet<<" regions filtered out."<<endl; 
   }
-  yFret.resize(idxRet);
-  yRret.resize(idxRet);
-  cFret.resize(idxRet);
-  cRret.resize(idxRet);
+//  yFret.resize(idxRet);
+//  yRret.resize(idxRet);
+//  cFret.resize(idxRet);
+//  cRret.resize(idxRet);
 
-  Rcpp::List ret = Rcpp::List::create( //return the forward and reverse reads
-      Rcpp::Named("yF", yFret),
-      Rcpp::Named("yR", yRret),
-      Rcpp::Named("cF", cFret),
-      Rcpp::Named("cR", cRret)
-      );
-
+//  Rcpp::List ret = Rcpp::List::create( //return the forward and reverse reads
+//      Rcpp::Named("yF", yFret),
+//      Rcpp::Named("yR", yRret),
+//      Rcpp::Named("cF", cFret),
+//      Rcpp::Named("cR", cRret)
+//      );
+  //TEMP
+  regions.resize(idxRet);
+  vector<Rcpp::S4> ret = returnS4(regions);
   return(ret);
 }
 

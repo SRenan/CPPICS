@@ -5,7 +5,7 @@ load("dat.rda")
 source("AllClasses.R")
 source("seg.R")
 sourceCpp("seg.cpp")
-res<-RCPP(gr)
+res<-SEGCPP(gr)
 
 seg<-segmentPICS(gr)
 
